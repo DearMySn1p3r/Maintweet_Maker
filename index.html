@@ -777,6 +777,7 @@ input[type=range]:disabled{opacity:.45}
 .card.t-home.no-nav .sheet{padding-top:calc(var(--bnH) + 34px)!important}
 .card.exporting [contenteditable]{box-shadow:none!important}
 .card.exporting .slot.sel::after{display:none}
+.card .md-b{font-weight:800;color:inherit}
 </style>
 </head>
 <body>
@@ -864,7 +865,7 @@ input[type=range]:disabled{opacity:.45}
 
       <div class="pane" data-pane="note">
         <div class="sec">
-          <div class="sh">Text Size<span>글이 길어도 크기는 그대로예요</span></div>
+          <div class="sh">Text Size<span>*글자* 처럼 별로 감싸면 굵게</span></div>
           <label class="zrow">글씨<input type="range" min="80" max="130" step="5" id="tsize" aria-label="소개 · ABOUT · NG 글씨 크기"><em id="tsizeV">100%</em></label>
         </div>
         <div class="sec">
@@ -1168,7 +1169,9 @@ function fontCSS(){
 {const ts=$('#tsize');const sync=()=>{ts.value=S.tsize||100;$('#tsizeV').textContent=(S.tsize||100)+'%';ts.style.setProperty('--p',((ts.value-80)/50*100)+'%')};sync();
  ts.addEventListener('input',()=>{S.tsize=+ts.value;sync();fitAll();save()});}
 /* ---------- rendering ---------- */
-function setB(key,val){$$(`[data-b="${key}"]`).forEach(el=>{if(el!==document.activeElement)el.textContent=val})}
+function fmt(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/\*{1,2}([^*\n]+?)\*{1,2}/g,'<b class="md-b">$1</b>')}
+function setB(key,val){$$(`[data-b="${key}"]`).forEach(el=>{if(el!==document.activeElement){if(String(val).includes('*'))el.innerHTML=fmt(val);else el.textContent=val}})}
+function rawOf(k){const m=k.match(/^like(\d)\.(label|title)$/);return m?(S.likes[+m[1]][m[2]]||''):(S[k]??'')}
 function renderText(){
   ['name','handle','status','bio','likeTitle','likeNote','aboutTitle','about','ngTitle','ng','tabText','tab2','corner','credit','credit2'].forEach(k=>setB(k,S[k]||''));
   $('[data-b="tab2"]').style.display=S.tab2?'':'none';
@@ -1348,6 +1351,7 @@ card.addEventListener('input',e=>{
   else{S[k]=v;const i=document.querySelector(`[data-f="${k}"]`);if(i)i.value=v}
   renderText();save();
 });
+card.addEventListener('focusin',e=>{const el=e.target.closest&&e.target.closest('[contenteditable]');if(el){const r=rawOf(el.dataset.b);if(el.textContent!==r)el.textContent=r}});
 card.addEventListener('focusout',e=>{if(e.target.closest&&e.target.closest('[contenteditable]'))setTimeout(renderText,0)});
 let pickKey=null;const fileInp=$('#file');
 function pickFor(k){pickKey=k;fileInp.value='';fileInp.click()}

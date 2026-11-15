@@ -707,8 +707,12 @@ input[type=range]:disabled{opacity:.45}
 .card .o-logo{font-size:11px!important}
 /* inline editing affordance (never exported) */
 .card [contenteditable]{outline:none;border-radius:6px;cursor:text}
-.card [contenteditable]:hover{box-shadow:0 0 0 calc(1.5px * var(--inv,1)) var(--line)}
-.card [contenteditable]:focus{box-shadow:0 0 0 calc(2px * var(--inv,1)) var(--accent)}
+.card [contenteditable]:hover{background-color:rgba(255,255,255,.45)}
+.card [contenteditable]:focus{background-color:rgba(255,255,255,.6);caret-color:var(--accent)}
+.card.card .note{gap:4px!important}
+.card.bn .note .txt{padding-top:2px!important}
+.card.card .note .txt{line-height:1.6!important}
+.card.exporting [contenteditable]{background-color:transparent!important}
 /* split, polished */
 .card.t-split .sheet{grid-template-columns:380px 1fr;box-shadow:0 30px 60px -32px var(--glow)}
 .card.t-split .side{background:linear-gradient(180deg,var(--tint) 0%,var(--tint) 60%,var(--sheet) 130%);padding:56px 40px 48px;align-items:center;text-align:center}
@@ -736,7 +740,7 @@ input[type=range]:disabled{opacity:.45}
 .card.card .shead h2::before,.card.card .note h3::before{content:"\2764\FE0E"!important;color:#fff!important;font:400 11px/1 var(--f-body)!important;opacity:.95}
 .card.card .note.ng h3{background:var(--ng)}
 .card.card .note.ng h3::before{content:"✕"!important;color:#fff!important;font-weight:800!important;font-size:10px!important}
-.card.card .note{gap:12px!important}
+.card.card .note{gap:4px!important}
 .card.bn .note h3{margin:16px 0 0 18px!important;padding:7px 14px 7px 12px!important}
 .card.card .note h3 span{color:inherit}
 .card.card .shead p{color:var(--muted)}

@@ -130,6 +130,11 @@ input[type=range]:disabled{opacity:.45}
 .btn.dark{background:var(--ui-ink);color:#fff;box-shadow:none}
 .btn:disabled{opacity:.55;cursor:wait}
 
+.slotbar{position:absolute;z-index:20;display:none;transform:translateX(-50%);background:#fff;border-radius:999px;padding:4px;gap:2px;box-shadow:0 0 0 1px var(--ui-line),0 12px 26px -12px rgba(120,50,90,.35);white-space:nowrap}
+.slotbar.on{display:flex}
+.slotbar button{border:0;background:transparent;border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--ui-ink)}
+.slotbar button:hover{background:var(--ui-accent-soft);color:var(--ui-accent)}
+.slotbar button[data-act="remove"]:hover{background:#FFEFF1;color:#E5485C}
 /* ---- preview board ---- */
 .stage{display:flex;flex-direction:column;min-width:0;min-height:0;padding:18px 26px 16px;background:radial-gradient(120% 90% at 85% 0%,var(--ui-accent-soft),transparent 60%),var(--ui-bg)}
 .stagebar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
@@ -749,6 +754,17 @@ input[type=range]:disabled{opacity:.45}
 .card.card[data-font="galmuri"] .shead h2,.card.card[data-font="galmuri"] .note h3{font-size:13px!important;letter-spacing:.04em!important}
 .card.card[data-font="orbit"] .shead h2,.card.card[data-font="orbit"] .note h3{padding:6px 15px 10px 12px!important}
 .card.card[data-font="orbit"] .shead h2::before,.card.card[data-font="orbit"] .note h3::before{transform:translateY(2px)}
+/* empty-slot hint + selection ring (editor only) */
+.card .slot .addtip{left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%) scale(var(--inv,1));transform-origin:50% 50%;display:flex;align-items:center;gap:6px;font:700 12px/1 var(--f-body);letter-spacing:0;color:var(--deep);background:rgba(255,255,255,.92);padding:6px 11px 6px 6px;border-radius:999px;box-shadow:0 0 0 1px var(--line),0 6px 16px -8px var(--glow);opacity:0;transition:opacity .15s,transform .15s}
+.card .slot .addtip i{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font:700 14px/1 var(--f-body);font-style:normal}
+.card .slot:not(.has):hover .ph,.card .slot.sel:not(.has) .ph{opacity:0}
+.card .slot .ph{transition:opacity .15s}
+.card .slot:hover .addtip,.card .slot.sel .addtip{opacity:1}
+.card .slot.sel::after{box-shadow:inset 0 0 0 calc(2px * var(--inv,1)) var(--accent),inset 0 0 0 calc(5px * var(--inv,1)) rgba(255,255,255,.55)}
+.card .slot .ui{background:rgba(255,255,255,.94);box-shadow:0 0 0 1px var(--line),0 8px 18px -10px var(--glow);border-radius:999px;padding:4px}
+.card .slot .ui button{color:var(--deep);border-radius:999px;padding:6px 11px}
+.card .slot .ui button:hover{background:var(--tint)}
+.card .slot .ui{display:none!important}
 .card.exporting [contenteditable]{box-shadow:none!important}
 .card.exporting .slot.sel::after{display:none}
 </style>
@@ -876,6 +892,7 @@ input[type=range]:disabled{opacity:.45}
     <div class="board">
       <div class="viewport" id="viewport">
         <div class="sizer" id="sizer">
+<div class="slotbar" id="slotbar"><button data-act="replace">바꾸기</button><button data-act="fit">맞춤</button><button data-act="remove">지우기</button></div>
         <div class="card t-console soft-ui bn p-gradient show-bio" id="card">
           <svg class="deco" style="left:30px;top:22px" width="46" height="46" viewBox="0 0 24 24"><path fill="var(--sheet)" d="M12 0c.8 6.4 4.8 10.6 12 12-7.2 1.4-11.2 5.6-12 12-.8-6.4-4.8-10.6-12-12C7.2 10.6 11.2 6.4 12 0z"/></svg>
           <svg class="deco" style="left:86px;top:52px" width="20" height="20" viewBox="0 0 24 24"><path fill="var(--accent)" d="M12 0c.8 6.4 4.8 10.6 12 12-7.2 1.4-11.2 5.6-12 12-.8-6.4-4.8-10.6-12-12C7.2 10.6 11.2 6.4 12 0z"/></svg>
@@ -1083,7 +1100,7 @@ $$('[data-f]').forEach(inp=>{
 /* ---------- like cards (DOM + editors) ---------- */
 const ICON_IMG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="9" cy="9.5" r="1.8"/><path d="M21 15.5l-4.5-4.5L6 21"/></svg>';
 const PH='<div class="ph"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 21s-7.5-4.6-9.5-9.2C1 8.2 3.3 4.5 7 4.5c2.1 0 3.6 1.1 5 3 1.4-1.9 2.9-3 5-3 3.7 0 6 3.7 4.5 7.3C19.5 16.4 12 21 12 21z"/></svg></div>';
-const SLOT_UI='<div class="ui"><button data-act="replace">바꾸기</button><button data-act="fit">맞춤</button><button data-act="remove">지우기</button></div><div class="addtip">눌러서 사진 넣기</div>';
+const SLOT_UI='<div class="ui"><button data-act="replace">바꾸기</button><button data-act="fit">맞춤</button><button data-act="remove">지우기</button></div><div class="addtip"><i>+</i>사진 넣기</div>';
 
 $('#lgrid').innerHTML=[0,1,2,3,4,5].map(i=>`<div class="lcard" data-i="${i}"><div class="slot" data-slot="like${i}"></div><div class="cap"><b data-b="like${i}.label"></b><span data-b="like${i}.title"></span></div></div>`).join('');
 $$('.slot').forEach(s=>s.innerHTML=PH+SLOT_UI);
@@ -1190,7 +1207,7 @@ function fitStage(){
   card.style.transform=`scale(${K})`;
   card.style.setProperty('--inv',1/K);
 }
-new ResizeObserver(()=>{fitStage();layoutAll()}).observe(viewport);
+new ResizeObserver(()=>{fitStage();layoutAll();if(typeof placeBar==='function')placeBar()}).observe(viewport);
 window.addEventListener('resize',()=>{fitStage();layoutAll()});
 
 /* ---------- images: cover-clamped pan/zoom ---------- */
@@ -1220,7 +1237,7 @@ function syncPanel(k){
   else{u.classList.remove('has');t.style.backgroundImage='';t.textContent='+';u.querySelector('.ut').textContent='사진 올리기';z.disabled=true;z.value=100;zv.textContent='100%'}
   z.style.setProperty('--p',((z.value-100)/5)+'%');
 }
-function renderImages(){['avatar','banner','like0','like1','like2','like3','like4','like5'].forEach(k=>{layoutSlot(k);syncPanel(k)})}
+function renderImages(){['avatar','banner','like0','like1','like2','like3','like4','like5'].forEach(k=>{layoutSlot(k);syncPanel(k)});if(typeof placeBar==='function')placeBar()}
 
 function zoomAt(k,factor,px,py){
   const d=S.imgs[k];const g=layoutSlot(k);if(!g)return;
@@ -1234,8 +1251,22 @@ function zoomAt(k,factor,px,py){
 function localPt(el,e){const r=el.getBoundingClientRect();return[(e.clientX-r.left)/K,(e.clientY-r.top)/K]}
 
 let selected=null;
-function select(k){selected=k;$$('.slot').forEach(s=>s.classList.toggle('sel',s.dataset.slot===k))}
-document.addEventListener('pointerdown',e=>{if(!e.target.closest('.slot')&&!e.target.closest('.panel'))select(null)});
+const bar=$('#slotbar');
+function placeBar(){
+  if(!selected||!S.imgs[selected]){bar.classList.remove('on');return}
+  const el=slotEl(selected);if(!el||!el.offsetWidth){bar.classList.remove('on');return}
+  const r=el.getBoundingClientRect(),sr=sizer.getBoundingClientRect();
+  bar.style.left=(r.left+r.width/2-sr.left)+'px';
+  let top=r.bottom-sr.top+10;if(top>sr.height-8)top=r.top-sr.top-48;
+  bar.style.top=top+'px';bar.classList.add('on');
+}
+function select(k){selected=k;$$('.slot').forEach(s=>s.classList.toggle('sel',s.dataset.slot===k));placeBar()}
+bar.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!selected||!S.imgs[selected])return;const k=selected;
+  if(b.dataset.act==='replace')pickFor(k);
+  if(b.dataset.act==='fit'){Object.assign(S.imgs[k],{zoom:1,cx:.5,cy:.5});layoutSlot(k);syncPanel(k);save()}
+  if(b.dataset.act==='remove'){delete S.imgs[k];layoutSlot(k);syncPanel(k);save();select(null)}});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('.slot')&&!e.target.closest('.panel')&&!e.target.closest('.slotbar'))select(null)});
+window.addEventListener('resize',()=>placeBar());
 
 const ptrs=new Map();let gest=null;
 card.addEventListener('pointerdown',e=>{

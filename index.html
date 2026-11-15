@@ -130,9 +130,9 @@ input[type=range]:disabled{opacity:.45}
 .btn.dark{background:var(--ui-ink);color:#fff;box-shadow:none}
 .btn:disabled{opacity:.55;cursor:wait}
 
-.slotbar{position:absolute;z-index:20;display:none;transform:translateX(-50%);background:#fff;border-radius:999px;padding:4px;gap:2px;box-shadow:0 0 0 1px var(--ui-line),0 12px 26px -12px rgba(120,50,90,.35);white-space:nowrap}
+.slotbar{position:absolute;z-index:20;display:none;transform:translateX(-50%);background:#fff;border-radius:999px;padding:2px;gap:0;box-shadow:0 0 0 1px var(--ui-line),0 8px 18px -10px rgba(120,50,90,.35);white-space:nowrap}
 .slotbar.on{display:flex}
-.slotbar button{border:0;background:transparent;border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--ui-ink)}
+.slotbar button{border:0;background:transparent;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:600;color:var(--ui-ink);line-height:1.2}
 .slotbar button:hover{background:var(--ui-accent-soft);color:var(--ui-accent)}
 .slotbar button[data-act="remove"]:hover{background:#FFEFF1;color:#E5485C}
 /* ---- preview board ---- */
@@ -158,7 +158,7 @@ input[type=range]:disabled{opacity:.45}
 .modal img{width:100%;height:auto;border-radius:12px;min-height:0;object-fit:contain;max-height:70vh;background:var(--ui-field)}
 .modal p{margin:0;color:var(--ui-muted);font-size:12.5px}
 .hint{color:var(--ui-muted);font-size:12px}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ui-ink);color:#fff;padding:10px 16px;border-radius:12px;font-weight:600;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ui-ink);color:#fff;padding:7px 13px;border-radius:999px;font-weight:600;font-size:12px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60}
 .toast.show{opacity:1}
 
 @media (max-width:860px){
@@ -755,8 +755,8 @@ input[type=range]:disabled{opacity:.45}
 .card.card[data-font="orbit"] .shead h2,.card.card[data-font="orbit"] .note h3{padding:6px 15px 10px 12px!important}
 .card.card[data-font="orbit"] .shead h2::before,.card.card[data-font="orbit"] .note h3::before{transform:translateY(2px)}
 /* empty-slot hint + selection ring (editor only) */
-.card .slot .addtip{left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%) scale(var(--inv,1));transform-origin:50% 50%;display:flex;align-items:center;gap:6px;font:700 12px/1 var(--f-body);letter-spacing:0;color:var(--deep);background:rgba(255,255,255,.92);padding:6px 11px 6px 6px;border-radius:999px;box-shadow:0 0 0 1px var(--line),0 6px 16px -8px var(--glow);opacity:0;transition:opacity .15s,transform .15s}
-.card .slot .addtip i{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font:700 14px/1 var(--f-body);font-style:normal}
+.card .slot .addtip{left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%) scale(var(--inv,1));transform-origin:50% 50%;display:flex;align-items:center;gap:6px;font:600 10.5px/1 var(--f-body);letter-spacing:0;color:var(--deep);background:rgba(255,255,255,.92);padding:3px 8px 3px 3px;gap:4px;border-radius:999px;box-shadow:0 0 0 1px var(--line),0 6px 16px -8px var(--glow);opacity:0;transition:opacity .15s,transform .15s}
+.card .slot .addtip i{width:14px;height:14px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font:700 11px/1 var(--f-body);font-style:normal}
 .card .slot:not(.has):hover .ph,.card .slot.sel:not(.has) .ph{opacity:0}
 .card .slot .ph{transition:opacity .15s}
 .card .slot:hover .addtip,.card .slot.sel .addtip{opacity:1}
@@ -1257,7 +1257,7 @@ function placeBar(){
   const el=slotEl(selected);if(!el||!el.offsetWidth){bar.classList.remove('on');return}
   const r=el.getBoundingClientRect(),sr=sizer.getBoundingClientRect();
   bar.style.left=(r.left+r.width/2-sr.left)+'px';
-  let top=r.bottom-sr.top+10;if(top>sr.height-8)top=r.top-sr.top-48;
+  let top=r.bottom-sr.top+6;if(top>sr.height-8)top=r.top-sr.top-32;
   bar.style.top=top+'px';bar.classList.add('on');
 }
 function select(k){selected=k;$$('.slot').forEach(s=>s.classList.toggle('sel',s.dataset.slot===k));placeBar()}

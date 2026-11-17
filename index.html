@@ -1379,6 +1379,65 @@ async function setImage(k,file){
 }
 
 /* ---------- export ---------- */
+/* blurred shadows / filters break inside the image renderer in some browsers (ghost bars, shifted frames):
+   drop them for the snapshot only, keep hairline rings (no blur) */
+function parseShadows(bs){
+  return bs.split(/,(?![^(]*\))/).map(p=>{
+    const col=(p.match(/(rgba?|color)\([^)]*\)/)||['rgba(0,0,0,0)'])[0];
+    const n=(p.replace(/(rgba?|color)\([^)]*\)/g,'').match(/-?[\d.]+px/g)||[]).map(parseFloat);
+    return {raw:p.trim(),color:col,x:n[0]||0,y:n[1]||0,blur:n[2]||0,spread:n[3]||0,inset:/inset/.test(p)};
+  });
+}
+function rr(ctx,x,y,w,h,r){
+  const [tl,tr,br,bl]=r.map(v=>Math.max(0,Math.min(v,w/2,h/2)));
+  ctx.moveTo(x+tl,y);ctx.lineTo(x+w-tr,y);ctx.quadraticCurveTo(x+w,y,x+w,y+tr);
+  ctx.lineTo(x+w,y+h-br);ctx.quadraticCurveTo(x+w,y+h,x+w-br,y+h);
+  ctx.lineTo(x+bl,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-bl);
+  ctx.lineTo(x,y+tl);ctx.quadraticCurveTo(x,y,x+tl,y);ctx.closePath();
+}
+function radiiOf(cs,w,h){
+  return ['borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'].map(k=>{
+    const v=cs[k]||'0';const f=parseFloat(v)||0;return /%/.test(v)?f/100*Math.min(w,h):f});
+}
+/* Blurred CSS shadows are drawn differently (and sometimes broken) by each browser's image renderer.
+   For the snapshot, paint every soft outer shadow ourselves on a canvas and slot it in as an image
+   right behind its element; hairline rings (no blur) stay as CSS. Looks the same, renders the same everywhere. */
+function stripSoft(){
+  const saved=[],D=2,OFF=10000;
+  card.querySelectorAll('*').forEach(el=>{
+    if(!el.offsetWidth&&!el.offsetHeight)return;
+    const cs=getComputedStyle(el);
+    if(cs.filter&&cs.filter!=='none'){saved.push(['s',el,'filter',el.style.getPropertyValue('filter'),el.style.getPropertyPriority('filter')]);el.style.setProperty('filter','none','important')}
+    const bs=cs.boxShadow;if(!bs||bs==='none')return;
+    const parts=parseShadows(bs);
+    if(!parts.some(p=>p.blur>0))return;
+    const keep=parts.filter(p=>p.blur===0).map(p=>p.raw);
+    const soft=parts.filter(p=>p.blur>0&&!p.inset);
+    const canPaint=cs.transform==='none'&&cs.position!=='fixed'&&soft.length&&el.parentNode;
+    if(canPaint){
+      const w=el.offsetWidth,h=el.offsetHeight,rad=radiiOf(cs,w,h);
+      const pad=Math.ceil(Math.max(...soft.map(p=>p.blur*1.5+Math.abs(p.spread)+Math.max(Math.abs(p.x),Math.abs(p.y)))))+4;
+      const c=document.createElement('canvas');c.width=(w+pad*2)*D;c.height=(h+pad*2)*D;
+      const ctx=c.getContext('2d');
+      soft.slice().reverse().forEach(p=>{
+        ctx.save();ctx.scale(D,D);
+        ctx.shadowColor=p.color;ctx.shadowBlur=p.blur*D;ctx.shadowOffsetX=(p.x+OFF)*D;ctx.shadowOffsetY=p.y*D;
+        ctx.fillStyle='#000';ctx.beginPath();
+        rr(ctx,pad-p.spread-OFF,pad-p.spread,w+p.spread*2,h+p.spread*2,rad.map(r=>r>0?r+p.spread:0));
+        ctx.fill();ctx.restore();
+      });
+      const img=document.createElement('img');img.src=c.toDataURL('image/png');img.alt='';img.className='soft-shadow';
+      const z=cs.zIndex==='auto'?'':cs.zIndex;
+      img.style.cssText=`position:absolute;left:${el.offsetLeft-pad}px;top:${el.offsetTop-pad}px;width:${w+pad*2}px;height:${h+pad*2}px;max-width:none;pointer-events:none;margin:0;${z?'z-index:'+z+';':''}`;
+      el.parentNode.insertBefore(img,el);saved.push(['n',img]);
+      if(cs.position==='static'){saved.push(['s',el,'position',el.style.getPropertyValue('position'),el.style.getPropertyPriority('position')]);el.style.setProperty('position','relative','important')}
+    }
+    saved.push(['s',el,'box-shadow',el.style.getPropertyValue('box-shadow'),el.style.getPropertyPriority('box-shadow')]);
+    el.style.setProperty('box-shadow',keep.length?keep.join(','):'none','important');
+  });
+  return saved;
+}
+function restoreSoft(saved){saved.slice().reverse().forEach(e=>{if(e[0]==='n'){e[1].remove();return}const[,el,p,v,pr]=e;if(v)el.style.setProperty(p,v,pr);else el.style.removeProperty(p)})}
 let downloads=null;
 try{if(window.claude&&claude.use)claude.use('downloads').then(d=>{downloads=d}).catch(()=>{})}catch(e){}
 let lastBlob=null,lastURL=null;
@@ -1392,8 +1451,11 @@ $('#exportBtn').addEventListener('click',async()=>{
     const {w,h}=cardSize();select(null);card.classList.add('exporting');
     const opts={fontEmbedCSS:fontCSS(),width:w,height:h,pixelRatio:2,style:{transform:'none',left:'0',top:'0'},filter:n=>!(n.classList&&(n.classList.contains('ui')||n.classList.contains('addtip')))};
     const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    if(isSafari)await htmlToImage.toBlob(card,opts);
-    lastBlob=await htmlToImage.toBlob(card,opts);
+    const saved=stripSoft();
+    try{
+      if(isSafari)await htmlToImage.toBlob(card,opts);
+      lastBlob=await htmlToImage.toBlob(card,opts);
+    }finally{restoreSoft(saved)}
     card.classList.remove('exporting');
     if(lastURL)URL.revokeObjectURL(lastURL);lastURL=URL.createObjectURL(lastBlob);
     $('#mImg').src=lastURL;$('#mSize').textContent=`${w*2} × ${h*2}px`;

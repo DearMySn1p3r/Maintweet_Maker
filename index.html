@@ -1390,50 +1390,63 @@ function parseShadows(bs){
 }
 function rr(ctx,x,y,w,h,r){
   const [tl,tr,br,bl]=r.map(v=>Math.max(0,Math.min(v,w/2,h/2)));
-  ctx.moveTo(x+tl,y);ctx.lineTo(x+w-tr,y);ctx.quadraticCurveTo(x+w,y,x+w,y+tr);
-  ctx.lineTo(x+w,y+h-br);ctx.quadraticCurveTo(x+w,y+h,x+w-br,y+h);
-  ctx.lineTo(x+bl,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-bl);
-  ctx.lineTo(x,y+tl);ctx.quadraticCurveTo(x,y,x+tl,y);ctx.closePath();
+  ctx.moveTo(x+tl,y);ctx.lineTo(x+w-tr,y);ctx.arcTo(x+w,y,x+w,y+tr,tr);
+  ctx.lineTo(x+w,y+h-br);ctx.arcTo(x+w,y+h,x+w-br,y+h,br);
+  ctx.lineTo(x+bl,y+h);ctx.arcTo(x,y+h,x,y+h-bl,bl);
+  ctx.lineTo(x,y+tl);ctx.arcTo(x,y,x+tl,y,tl);ctx.closePath();
 }
 function radiiOf(cs,w,h){
   return ['borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'].map(k=>{
     const v=cs[k]||'0';const f=parseFloat(v)||0;return /%/.test(v)?f/100*Math.min(w,h):f});
 }
-/* Blurred CSS shadows are drawn differently (and sometimes broken) by each browser's image renderer.
-   For the snapshot, paint every soft outer shadow ourselves on a canvas and slot it in as an image
-   right behind its element; hairline rings (no blur) stay as CSS. Looks the same, renders the same everywhere. */
+/* Box-shadows (soft glows AND hairline rings) are drawn inconsistently by mobile browsers' image renderers
+   (shifted copies, ghost bars). For the snapshot every shadow is painted on a canvas by us and slotted in
+   as an image: outer layers right behind the element, inset rings as a transparent overlay on top. */
 function stripSoft(){
-  const saved=[],D=2,OFF=10000;
-  card.querySelectorAll('*').forEach(el=>{
-    if(!el.offsetWidth&&!el.offsetHeight)return;
-    const cs=getComputedStyle(el);
+  const saved=[];
+  const snap=[];card.querySelectorAll('*').forEach(el=>{if(el.offsetWidth||el.offsetHeight)snap.push([el,getComputedStyle(el)])});
+  snap.forEach(([el,cs])=>{
     if(cs.filter&&cs.filter!=='none'){saved.push(['s',el,'filter',el.style.getPropertyValue('filter'),el.style.getPropertyPriority('filter')]);el.style.setProperty('filter','none','important')}
     const bs=cs.boxShadow;if(!bs||bs==='none')return;
     const parts=parseShadows(bs);
-    if(!parts.some(p=>p.blur>0))return;
-    const keep=parts.filter(p=>p.blur===0).map(p=>p.raw);
-    const soft=parts.filter(p=>p.blur>0&&!p.inset);
-    const canPaint=cs.transform==='none'&&cs.position!=='fixed'&&soft.length&&el.parentNode;
+    const outer=parts.filter(p=>!p.inset),inner=parts.filter(p=>p.inset&&p.blur===0);
+    const canPaint=cs.transform==='none'&&el.parentNode&&cs.display!=='inline';
     if(canPaint){
-      const w=el.offsetWidth,h=el.offsetHeight,rad=radiiOf(cs,w,h);
-      const pad=Math.ceil(Math.max(...soft.map(p=>p.blur*1.5+Math.abs(p.spread)+Math.max(Math.abs(p.x),Math.abs(p.y)))))+4;
-      const c=document.createElement('canvas');c.width=(w+pad*2)*D;c.height=(h+pad*2)*D;
-      const ctx=c.getContext('2d');
-      soft.slice().reverse().forEach(p=>{
-        ctx.save();ctx.scale(D,D);
-        ctx.shadowColor=p.color;ctx.shadowBlur=p.blur*D;ctx.shadowOffsetX=(p.x+OFF)*D;ctx.shadowOffsetY=p.y*D;
-        ctx.fillStyle='#000';ctx.beginPath();
-        rr(ctx,pad-p.spread-OFF,pad-p.spread,w+p.spread*2,h+p.spread*2,rad.map(r=>r>0?r+p.spread:0));
-        ctx.fill();ctx.restore();
-      });
-      const img=document.createElement('img');img.src=c.toDataURL('image/png');img.alt='';img.className='soft-shadow';
-      const z=cs.zIndex==='auto'?'':cs.zIndex;
-      img.style.cssText=`position:absolute;left:${el.offsetLeft-pad}px;top:${el.offsetTop-pad}px;width:${w+pad*2}px;height:${h+pad*2}px;max-width:none;pointer-events:none;margin:0;${z?'z-index:'+z+';':''}`;
-      el.parentNode.insertBefore(img,el);saved.push(['n',img]);
+      const w=el.offsetWidth,h=el.offsetHeight,rad=radiiOf(cs,w,h),z=cs.zIndex==='auto'?'':cs.zIndex;
+      const mk=(c,pad,after)=>{const img=document.createElement('img');img.src=c.toDataURL('image/png');img.alt='';img.className='soft-shadow';
+        img.style.cssText=`display:block;position:absolute;left:${el.offsetLeft-pad}px;top:${el.offsetTop-pad}px;width:${w+pad*2}px;height:${h+pad*2}px;max-width:none;max-height:none;pointer-events:none;margin:0;padding:0;border:0;${z?'z-index:'+z+';':''}`;
+        el.parentNode.insertBefore(img,after?el.nextSibling:el);saved.push(['n',img])};
+      if(outer.length){
+        const pad=Math.ceil(Math.max(...outer.map(p=>p.blur*1.5+Math.abs(p.spread)+Math.max(Math.abs(p.x),Math.abs(p.y)))))+4;
+        const D=(w+pad*2)*(h+pad*2)>1.5e6?1:2;
+        const c=document.createElement('canvas');c.width=Math.ceil((w+pad*2)*D);c.height=Math.ceil((h+pad*2)*D);
+        const ctx=c.getContext('2d');ctx.scale(D,D);
+        outer.slice().reverse().forEach(p=>{
+          ctx.save();ctx.beginPath();
+          rr(ctx,pad-p.spread,pad-p.spread,w+p.spread*2,h+p.spread*2,rad.map(r=>r>0?Math.max(0,r+p.spread):0));
+          if(p.blur>0){ctx.shadowColor=p.color;ctx.shadowBlur=p.blur*D;ctx.shadowOffsetX=p.x*D;ctx.shadowOffsetY=p.y*D;ctx.fillStyle=p.color;ctx.fill()}
+          else{ctx.translate(p.x,p.y);ctx.fillStyle=p.color;ctx.fill()}
+          ctx.restore();
+        });
+        ctx.save();ctx.globalCompositeOperation='destination-out';ctx.beginPath();rr(ctx,pad,pad,w,h,rad);ctx.fillStyle='#000';ctx.fill();ctx.restore();
+        mk(c,pad,false);
+      }
+      if(inner.length){
+        const D=w*h>1.5e6?1:2;
+        const c=document.createElement('canvas');c.width=Math.ceil(w*D);c.height=Math.ceil(h*D);
+        const ctx=c.getContext('2d');ctx.scale(D,D);
+        inner.slice().reverse().forEach(p=>{
+          ctx.save();ctx.beginPath();rr(ctx,0,0,w,h,rad);ctx.clip();
+          ctx.beginPath();ctx.rect(-10,-10,w+20,h+20);
+          rr(ctx,p.spread+p.x,p.spread+p.y,w-p.spread*2,h-p.spread*2,rad.map(r=>Math.max(0,r-p.spread)));
+          ctx.fillStyle=p.color;ctx.fill('evenodd');ctx.restore();
+        });
+        mk(c,0,true);
+      }
       if(cs.position==='static'){saved.push(['s',el,'position',el.style.getPropertyValue('position'),el.style.getPropertyPriority('position')]);el.style.setProperty('position','relative','important')}
     }
     saved.push(['s',el,'box-shadow',el.style.getPropertyValue('box-shadow'),el.style.getPropertyPriority('box-shadow')]);
-    el.style.setProperty('box-shadow',keep.length?keep.join(','):'none','important');
+    el.style.setProperty('box-shadow','none','important');
   });
   return saved;
 }
